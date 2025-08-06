@@ -15,14 +15,6 @@ class TEXT:
     START = """
 <b>Hi {}, I'm TamilMV RSS Bot! 🤖</b>
 
-<b>Commands:</b>
-• /start - Show this menu
-• /help - Show help message
-• /settings - Bot configuration (Admin only)
-• /statistics - View bot statistics (Admin only)
-• /retry_failed - Manage failed posts (Admin only)
-• /restart - Restart the bot (Admin only)
-
 <b>Features:</b>
 • Auto-posts new torrents every 1 minute
 • Real-time scraping from 1TamilMV.blue
@@ -76,27 +68,27 @@ async def start_command(client: Client, msg: Message):
 
 async def help_command(client: Client, msg: Message):
     help_text = """
-🤖 **TamilMV RSS Bot Commands:**
+🤖 <b>TamilMV RSS Bot Commands:</b>
 
-**General Commands:**
+<b>General Commands:</b>
 • /start - Start the bot and see main menu
 • /help - Show this help message
 
-**Admin Commands:**
+<b>Admin Commands:</b>
 • /settings - Bot configuration management
 • /statistics - View bot performance statistics
 • /retry_failed - Manage failed posts
 • /restart - Restart the bot
 
-📋 **Features:**
+📋 <b>Features:</b>
 • Auto-posts new torrents to channel every 1 minute
 • Real-time scraping from 1TamilMV.blue
 • MongoDB database integration
 • Dynamic configuration management
 
-🔄 **Bot Status:** Running with 1-minute check intervals
+🔄 <b>Bot Status:</b> Running with 1-minute check intervals
 """
-    await msg.reply_text(help_text, parse_mode="markdown")
+    await msg.reply_text(help_text, parse_mode="html")
 
 
 # Admin Commands
