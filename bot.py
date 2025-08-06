@@ -9,7 +9,7 @@ from flask import Flask
 from bs4 import BeautifulSoup
 import cloudscraper
 
-from pyrogram import Client, errors, utils as pyroutils
+from pyrogram import Client, errors, utils as pyroutils, filters
 from config import BOT, API, OWNER, CHANNEL, BOT_SETTINGS
 import start
 from database import db
@@ -47,6 +47,7 @@ async def crawl_tbl():
     config = await db.get_bot_config()
     base_url = config.get("base_url", "https://www.1tamilmv.com") if config else "https://www.1tamilmv.com"
     topic_limit = config.get("topic_limit", 0) if config else 0
+    
     torrents = []
     scraper = cloudscraper.create_scraper()
 
@@ -288,6 +289,15 @@ class MN_Bot(Client):
         
         # Cleanup old data
         await db.cleanup_old_data()
+        
+        # Register command handlers
+        self.add_handler(filters.command("start"), start.start_command)
+        self.add_handler(filters.command("help"), start.help_command)
+        self.add_handler(filters.command("settings") & filters.user(OWNER.ID), start.settings_command)
+        self.add_handler(filters.command("statistics") & filters.user(OWNER.ID), start.statistics_command)
+        self.add_handler(filters.command("retry_failed") & filters.user(OWNER.ID), start.retry_failed_command)
+        self.add_handler(filters.text & filters.user(OWNER.ID), start.handle_settings_input)
+        self.add_handler(filters.callback_query, start.callback_query_handler)
         
         await self.send_message(
             OWNER.ID,

@@ -1,5 +1,4 @@
-from pyrogram import Client as MN_Bot
-from pyrogram import filters
+from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from pyrogram.errors import FloodWait
 import asyncio
@@ -55,8 +54,16 @@ class INLINE:
     )
 
 
-@MN_Bot.on_message(filters.command("start"))
-async def start(client: MN_Bot, msg: Message):
+# Global bot instance (will be set by bot.py)
+bot_instance = None
+
+def set_bot_instance(bot):
+    """Set the bot instance for command handlers"""
+    global bot_instance
+    bot_instance = bot
+
+
+async def start_command(client: Client, msg: Message):
     await msg.reply_text(
         TEXT.START.format(msg.from_user.mention),
         disable_web_page_preview=True,
@@ -64,8 +71,7 @@ async def start(client: MN_Bot, msg: Message):
     )
 
 
-@MN_Bot.on_message(filters.command("help"))
-async def help_command(client: MN_Bot, msg: Message):
+async def help_command(client: Client, msg: Message):
     help_text = """
 🤖 **TamilMV RSS Bot Commands:**
 
@@ -90,9 +96,11 @@ async def help_command(client: MN_Bot, msg: Message):
 
 
 # Admin Commands
-@MN_Bot.on_message(filters.command("settings") & filters.user(OWNER.ID))
-async def settings_command(client: MN_Bot, message: Message):
+async def settings_command(client: Client, message: Message):
     """Handle /settings command"""
+    if message.from_user.id != OWNER.ID:
+        return
+        
     config = await db.get_bot_config()
     if not config:
         await message.reply_text("❌ Failed to load configuration")
@@ -119,9 +127,11 @@ Select an option to modify:"""
     await message.reply_text(text, reply_markup=keyboard)
 
 
-@MN_Bot.on_message(filters.command("statistics") & filters.user(OWNER.ID))
-async def statistics_command(client: MN_Bot, message: Message):
+async def statistics_command(client: Client, message: Message):
     """Handle /statistics command"""
+    if message.from_user.id != OWNER.ID:
+        return
+        
     try:
         # Get today's stats
         today_stats = await db.get_daily_stats()
@@ -143,6 +153,9 @@ async def statistics_command(client: MN_Bot, message: Message):
             success_rate = round((successful / max(total, 1)) * 100, 1) if total > 0 else 0
         else:
             success_rate = 0
+            
+        # Get config for display
+        config = await db.get_bot_config()
             
         text = f"""📊 **Bot Statistics**
 
@@ -168,9 +181,11 @@ async def statistics_command(client: MN_Bot, message: Message):
         await message.reply_text("❌ Failed to load statistics")
 
 
-@MN_Bot.on_message(filters.command("retry_failed") & filters.user(OWNER.ID))
-async def retry_failed_command(client: MN_Bot, message: Message):
+async def retry_failed_command(client: Client, message: Message):
     """Handle /retry_failed command"""
+    if message.from_user.id != OWNER.ID:
+        return
+        
     try:
         failed_posts = await db.get_failed_posts()
         
@@ -197,9 +212,11 @@ Select an action:"""
         await message.reply_text("❌ Failed to load failed posts")
 
 
-@MN_Bot.on_message(filters.text & filters.user(OWNER.ID))
-async def handle_settings_input(client: MN_Bot, message: Message):
+async def handle_settings_input(client: Client, message: Message):
     """Handle settings input from user"""
+    if message.from_user.id != OWNER.ID:
+        return
+        
     user_id = message.from_user.id
     if user_id not in user_states:
         return
@@ -273,8 +290,7 @@ async def handle_settings_input(client: MN_Bot, message: Message):
         await message.reply_text("❌ An error occurred while updating settings")
 
 
-@MN_Bot.on_callback_query()
-async def callback_query_handler(client: MN_Bot, callback_query: CallbackQuery):
+async def callback_query_handler(client: Client, callback_query: CallbackQuery):
     """Handle callback queries for settings"""
     if callback_query.from_user.id != OWNER.ID:
         await callback_query.answer("❌ You are not authorized to use this bot!")
