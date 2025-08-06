@@ -2,11 +2,11 @@ import asyncio
 import logging
 import threading
 import io
+import re
 
 from flask import Flask
 from bs4 import BeautifulSoup
 import cloudscraper
-import re
 
 from pyrogram import Client, errors, utils as pyroutils
 from config import BOT, API, OWNER, CHANNEL
@@ -88,7 +88,6 @@ def crawl_tbl():
                     title = raw_text
                     
                     # Use regex to remove any domain pattern
-                    import re
                     # Remove any domain pattern like "www.1tamilmv.com - " or "1tamilmv.com - "
                     title = re.sub(r'www\.1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
                     title = re.sub(r'1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
