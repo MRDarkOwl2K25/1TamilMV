@@ -98,7 +98,7 @@ def cleanup_corrupted_sessions():
     return cleaned
 
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
-def crawl_tbl():
+def crawl_tbl(broken_urls):
     base_url = "https://www.1tamilmv.blue"
     torrents = []
     scraper = cloudscraper.create_scraper()
@@ -247,7 +247,7 @@ class MN_Bot(Client):
     async def auto_post_torrents(self):
         while self.is_running:
             try:
-                torrents = crawl_tbl()
+                torrents = crawl_tbl(self.broken_urls)
                 for t in torrents:
                     if not self.is_running:
                         break
