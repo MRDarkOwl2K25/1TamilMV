@@ -73,7 +73,8 @@ The bot requires the following environment variables to be set:
 4. **OWNER**: Your Telegram user ID (get it from [@userinfobot](https://t.me/userinfobot))
 5. **CHANNEL_ID**: The Telegram channel ID where torrents will be posted (numeric ID, negative for channels)
 6. **PORT**: Port for the web server (default: 8000)
-7. **MONGODB_URI**: MongoDB connection string (default: mongodb://localhost:27017)
+7. **DATABASE_URI**: Database connection string (default: mongodb://localhost:27017)
+8. **DATABASE_NAME**: Database name (default: tamilmv_bot)
 
 **Note**: The variable names are case-sensitive and must match exactly as shown above.
 
@@ -92,7 +93,8 @@ The bot requires the following environment variables to be set:
    OWNER=your_user_id_here
    CHANNEL_ID=your_channel_id_here
    PORT=8000
-   MONGODB_URI=mongodb://localhost:27017
+   DATABASE_URI=mongodb://localhost:27017
+   DATABASE_NAME=tamilmv_bot
    ```
 
 #### **Cloud Deployment**
@@ -121,7 +123,7 @@ When deploying to cloud platforms, add these environment variables in your servi
 
 3. Set up MongoDB:
    - Install MongoDB locally or use MongoDB Atlas (free cloud service)
-   - Update `MONGODB_URI` in your environment variables
+   - Update `DATABASE_URI` and `DATABASE_NAME` in your environment variables
 
 4. Set up environment variables (see Configuration section above)
 
@@ -148,7 +150,8 @@ When deploying to cloud platforms, add these environment variables in your servi
    - `OWNER`
    - `CHANNEL_ID`
    - `PORT` (optional, defaults to 8000)
-   - `MONGODB_URI`
+   - `DATABASE_URI`
+   - `DATABASE_NAME`
 4. Deploy the service.
 
 #### **Render**
@@ -162,7 +165,8 @@ When deploying to cloud platforms, add these environment variables in your servi
    - `OWNER`
    - `CHANNEL_ID`
    - `PORT` (optional, defaults to 8000)
-   - `MONGODB_URI`
+   - `DATABASE_URI`
+   - `DATABASE_NAME`
 4. Set the Start Command to:
     ```bash
     python bot.py

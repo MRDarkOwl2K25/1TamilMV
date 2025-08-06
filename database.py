@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import MONGODB
+from config import DATABASE
 
 class Database:
     def __init__(self):
@@ -12,8 +12,8 @@ class Database:
     async def connect(self):
         """Connect to MongoDB"""
         try:
-            self.client = AsyncIOMotorClient(MONGODB.URI)
-            self.db = self.client.tamilmv_bot
+            self.client = AsyncIOMotorClient(DATABASE.URI)
+            self.db = self.client[DATABASE.NAME]
             # Test connection
             await self.client.admin.command('ping')
             logging.info("✅ Connected to MongoDB successfully")

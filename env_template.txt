@@ -21,5 +21,8 @@ PORT=8000
 # Maximum number of topics to process per scraping cycle (optional, default: 15)
 TOPIC_LIMIT=0
 
-# MongoDB Connection String (optional, default: mongodb://localhost:27017)
-MONGODB_URI=mongodb://localhost:27017
+# Database Connection String (optional, default: mongodb://localhost:27017)
+DATABASE_URI=mongodb://localhost:27017
+
+# Database Name (optional, default: tamilmv_bot)
+DATABASE_NAME=tamilmv_bot

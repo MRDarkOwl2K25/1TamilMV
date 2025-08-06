@@ -49,8 +49,10 @@ class BOT_SETTINGS:
     TOPIC_LIMIT = int(os.environ.get("TOPIC_LIMIT", 0))
 
 
-class MONGODB:
+class DATABASE:
     """
-    MONGODB_URI: MongoDB connection string
+    DATABASE_URI: Database connection string
+    DATABASE_NAME: Database name
     """
-    URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+    URI = os.environ.get("DATABASE_URI", "mongodb://localhost:27017")
+    NAME = os.environ.get("DATABASE_NAME", "tamilmv_bot")
