@@ -281,6 +281,12 @@ class MN_Bot(Client):
         # Connect to MongoDB
         await db.connect()
         
+        await self.send_message(
+            OWNER.ID,
+            text=f"{me.first_name} ✅ BOT started with MongoDB integration (1‑min checks)"
+        )
+        logging.info("Bot started with MongoDB integration")
+        
         # Load configuration
         await self.load_config()
         
@@ -311,6 +317,10 @@ class MN_Bot(Client):
         async def retry_failed_handler(client, message):
             await start.retry_failed_command(client, message)
             
+        @self.on_message(filters.command("restart") & filters.user(OWNER.ID))
+        async def restart_handler(client, message):
+            await start.restart_command(client, message)
+            
         @self.on_message(filters.text & filters.user(OWNER.ID))
         async def text_handler(client, message):
             await start.handle_settings_input(client, message)
@@ -319,11 +329,6 @@ class MN_Bot(Client):
         async def callback_handler(client, callback_query):
             await start.callback_query_handler(client, callback_query)
         
-        await self.send_message(
-            OWNER.ID,
-            text=f"{me.first_name} ✅ BOT started with MongoDB integration (1‑min checks)"
-        )
-        logging.info("Bot started with MongoDB integration")
         asyncio.create_task(self.auto_post_torrents())
 
     async def stop(self, *args):

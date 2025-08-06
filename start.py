@@ -3,6 +3,8 @@ from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, 
 from pyrogram.errors import FloodWait
 import asyncio
 import logging
+import pytz
+from datetime import datetime
 from config import OWNER
 from database import db
 
@@ -19,6 +21,7 @@ class TEXT:
 • /settings - Bot configuration (Admin only)
 • /statistics - View bot statistics (Admin only)
 • /retry_failed - Manage failed posts (Admin only)
+• /restart - Restart the bot (Admin only)
 
 <b>Features:</b>
 • Auto-posts new torrents every 1 minute
@@ -83,6 +86,7 @@ async def help_command(client: Client, msg: Message):
 • /settings - Bot configuration management
 • /statistics - View bot performance statistics
 • /retry_failed - Manage failed posts
+• /restart - Restart the bot
 
 📋 **Features:**
 • Auto-posts new torrents to channel every 1 minute
@@ -210,6 +214,24 @@ Select an action:"""
     except Exception as e:
         logging.error(f"Failed to get failed posts: {e}")
         await message.reply_text("❌ Failed to load failed posts")
+
+
+async def restart_command(client: Client, message: Message):
+    """Handle /restart command"""
+    if message.from_user.id != OWNER.ID:
+        return
+        
+    buttons = [
+        [
+            InlineKeyboardButton("Yes!", callback_data="confirm_restart_yes"),
+            InlineKeyboardButton("No!", callback_data="confirm_restart_no")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await message.reply_text(
+        "Are you really sure you want to restart the bot?",
+        reply_markup=reply_markup
+    )
 
 
 async def handle_settings_input(client: Client, message: Message):
@@ -358,4 +380,30 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
     elif data == "clear_all_failed":
         await db.clear_failed_posts()
         await callback_query.message.edit_text("✅ All failed posts cleared!")
-        await callback_query.answer("Failed posts cleared") 
+        await callback_query.answer("Failed posts cleared")
+        
+    elif data.startswith("confirm_restart_"):
+        action = data.split("_")[-1]
+        if action == "yes":
+            msg = await callback_query.message.edit_text("🔄 Restarting server...")
+            await asyncio.sleep(2)
+            
+            # Get current time in IST
+            from datetime import datetime
+            import pytz
+            
+            msg_text = (
+                "<b>⌬ Restarted Successfully!</b>\n"
+                f"<b>┟ Date:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d/%m/%y')}\n"
+                f"<b>┠ Time:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%I:%M:%S %p')}\n"
+                f"<b>┠ TimeZone:</b> Asia/Kolkata"
+            )
+            await msg.edit(f"<i>{msg_text}</i>")
+            
+            # Restart the bot
+            import os
+            import sys
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            await callback_query.message.edit_text("❌ Restart cancelled.")
+            await callback_query.answer("Restart cancelled") 

@@ -217,6 +217,8 @@ class Database:
             logging.info("Cleaned up old data")
         except Exception as e:
             logging.error(f"Failed to cleanup old data: {e}")
+    
+
 
 # Global database instance
 db = Database() 

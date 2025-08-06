@@ -42,6 +42,13 @@ Manage failed post retries:
 - Retry all failed posts
 - Clear failed posts list
 
+### **`/restart`** - Bot Restart
+Restart the bot with confirmation:
+- Shows confirmation dialog with Yes/No buttons
+- Displays restart timestamp in IST timezone
+- Gracefully restarts the bot process
+- Sends restart confirmation message
+
 ---
 
 ## **Requirements**
@@ -190,6 +197,12 @@ When deploying to cloud platforms, add these environment variables in your servi
 ### **Failed Posts Management**
 - Send `/retry_failed` to manage failed posts
 - Choose to retry all failed posts or clear the list
+
+### **Bot Restart**
+- Send `/restart` to restart the bot
+- A confirmation dialog will appear with Yes/No buttons
+- Click "Yes!" to confirm restart
+- The bot will restart and show restart timestamp
 
 ---
 
