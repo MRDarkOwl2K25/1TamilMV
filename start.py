@@ -92,7 +92,7 @@ async def help_command(client: Client, msg: Message):
 
 🔄 **Bot Status:** Running with 1-minute check intervals
 """
-    await msg.reply_text(help_text, parse_mode="Markdown")
+    await msg.reply_text(help_text, parse_mode="markdown")
 
 
 # Admin Commands
