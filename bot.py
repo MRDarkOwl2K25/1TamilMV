@@ -35,6 +35,9 @@ def extract_size(text):
     match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB|KB))", text, re.IGNORECASE)
     return match.group(1) if match else "Unknown"
 
+# Global variable to track broken URLs
+broken_urls = set()
+
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
 def crawl_tbl():
     base_url = "https://www.1tamilmv.blue"
@@ -63,14 +66,14 @@ def crawl_tbl():
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
                 
                 # Skip if this URL is known to be broken
-                if full_url in self.broken_urls:
+                if full_url in broken_urls:
                     continue
                 dresp = scraper.get(full_url, timeout=10)
                 
                 # Check if the page exists (not 404)
                 if dresp.status_code == 404:
                     logging.info(f"Skipping 404 topic: {full_url}")
-                    self.broken_urls.add(full_url)  # Remember this broken URL
+                    broken_urls.add(full_url)  # Remember this broken URL
                     continue
                     
                 dresp.raise_for_status()
@@ -140,7 +143,6 @@ class MN_Bot(Client):
         self.channel_id = CHANNEL.ID
         self.last_posted = set()   # tracks individual file links
         self.seen_topics = set()   # tracks which topic URLs have been processed
-        self.broken_urls = set()   # tracks URLs that return 404 errors
 
     async def safe_send_message(self, chat_id, text, **kwargs):
         # split overly-long messages
@@ -200,14 +202,14 @@ class MN_Bot(Client):
         BOT.USERNAME = f"@{me.username}"
         await self.send_message(
             OWNER.ID,
-            text=f"{me.first_name} ✅ BOT started with only TBL support (1‑min checks)"
+            text=f"{me.first_name} ✅ BOT started with only TMVsupport (1‑min checks)"
         )
-        logging.info("MN-Bot started with only TBL support")
+        logging.info("Bot started with only TMV support")
         asyncio.create_task(self.auto_post_torrents())
 
     async def stop(self, *args):
         await super().stop()
-        logging.info("MN-Bot stopped")
+        logging.info("Bot stopped")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
