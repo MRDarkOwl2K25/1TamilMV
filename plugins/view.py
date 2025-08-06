@@ -28,11 +28,24 @@ def crawl_tbl():
             a["href"] for a in soup.find_all("a", href=re.compile(r'/forums/topic/'))
             if a.get("href")
         ]
+        
+        # If no topic links found, try alternative patterns
+        if not topic_links:
+            topic_links = [
+                a["href"] for a in soup.find_all("a", href=re.compile(r'/topic/'))
+                if a.get("href")
+            ]
         # dedupe and limit to first 15 topics
         for rel_url in list(dict.fromkeys(topic_links))[:15]:
             try:
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
                 dresp = scraper.get(full_url, timeout=10)
+                
+                # Check if the page exists (not 404)
+                if dresp.status_code == 404:
+                    print(f"Skipping 404 topic: {full_url}")
+                    continue
+                    
                 dresp.raise_for_status()
                 post_soup = BeautifulSoup(dresp.text, "html.parser")
 
@@ -65,6 +78,7 @@ def crawl_tbl():
 
             except Exception as post_err:
                 print(f"Failed to parse TBL topic {rel_url}: {post_err}")
+                continue  # Continue to next topic instead of stopping
 
     except Exception as e:
         print(f"Failed to fetch TBL homepage: {e}")
