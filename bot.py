@@ -61,7 +61,7 @@ def crawl_tbl():
                 if a.get("href")
             ]
         # dedupe and limit to first 15 topics
-        for rel_url in list(dict.fromkeys(topic_links))[:100]:
+        for rel_url in list(dict.fromkeys(topic_links))[:15]:
             try:
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
                 
@@ -138,7 +138,7 @@ class MN_Bot(Client):
             api_id=API.ID,
             api_hash=API.HASH,
             bot_token=BOT.TOKEN,
-            plugins=dict(root="plugins"),
+            plugins=dict(root="."),
             workers=8
         )
         self.channel_id = CHANNEL.ID
