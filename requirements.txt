@@ -1,0 +1,15 @@
+aiohttp
+pyrofork==2.3.4
+python-dotenv
+TgCrypto
+feedparser
+Flask
+cloudscraper
+requests
+beautifulsoup4
+lxml
+torrent-parser
+bencodepy
+certifi
+urllib3
+setuptools

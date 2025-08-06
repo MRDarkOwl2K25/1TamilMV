@@ -1,0 +1,18 @@
+# Environment Variables for Tamil Blasters RSS Bot
+# Copy this file to .env and fill in your actual values
+
+# Bot Token (from @BotFather)
+TOKEN=your_bot_token_here
+
+# Telegram API Credentials (from https://my.telegram.org)
+API_ID=your_api_id_here
+API_HASH=your_api_hash_here
+
+# Owner User ID (from @userinfobot)
+OWNER=your_user_id_here
+
+# Channel ID (numeric ID, negative for channels, from @userinfobot)
+CHANNEL_ID=your_channel_id_here
+
+# Web Server Port (optional, default: 8000)
+PORT=8000

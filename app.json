@@ -1,0 +1,45 @@
+{
+  "name": "Tamil-Blasters-RSS-Bot",
+  "description": "Telegram bot for Tamil Blasters RSS feed monitoring and auto-posting",
+  "repository": "https://github.com/mntg4u/assistent",
+  "keywords": [
+    "telegram",
+    "bot",
+    "rss",
+    "tamil",
+    "torrent"
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "TOKEN": {
+      "description": "Telegram Bot token from @BotFather",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Telegram API hash from https://my.telegram.org",
+      "required": true
+    },
+    "API_ID": {
+      "description": "Telegram API ID from https://my.telegram.org",
+      "required": true
+    },
+    "OWNER": {
+      "description": "Owner's Telegram user ID (from @userinfobot)",
+      "required": true
+    },
+    "CHANNEL_ID": {
+      "description": "Telegram Channel ID where the bot will post automatically",
+      "required": true
+    },
+    "PORT": {
+      "description": "Port number for the web server (default: 8000)",
+      "required": false,
+      "value": "8000"
+    }
+  }
+}
+  
