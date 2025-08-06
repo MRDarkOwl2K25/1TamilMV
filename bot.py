@@ -41,7 +41,7 @@ broken_urls = set()
 
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
 def crawl_tbl():
-    base_url = "https://www.1tamilmv.blue"
+    base_url = "https://www.yts.mx"
     torrents = []
     scraper = cloudscraper.create_scraper()
 
