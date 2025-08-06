@@ -3,6 +3,9 @@ import logging
 import threading
 import io
 import re
+import os
+import json
+import pickle
 
 from flask import Flask
 from bs4 import BeautifulSoup
@@ -35,8 +38,64 @@ def extract_size(text):
     match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB|KB))", text, re.IGNORECASE)
     return match.group(1) if match else "Unknown"
 
-# Global variable to track broken URLs
-broken_urls = set()
+# Data persistence functions
+def save_bot_data(last_posted, seen_topics, broken_urls):
+    """Save bot tracking data to file"""
+    try:
+        data = {
+            'last_posted': list(last_posted),
+            'seen_topics': list(seen_topics),
+            'broken_urls': list(broken_urls)
+        }
+        with open('bot_data.pkl', 'wb') as f:
+            pickle.dump(data, f)
+        logging.info("Bot data saved successfully")
+    except Exception as e:
+        logging.error(f"Failed to save bot data: {e}")
+
+def load_bot_data():
+    """Load bot tracking data from file"""
+    try:
+        if os.path.exists('bot_data.pkl'):
+            with open('bot_data.pkl', 'rb') as f:
+                data = pickle.load(f)
+            return set(data.get('last_posted', [])), set(data.get('seen_topics', [])), set(data.get('broken_urls', []))
+        else:
+            return set(), set(), set()
+    except Exception as e:
+        logging.error(f"Failed to load bot data: {e}")
+        return set(), set(), set()
+
+# Clean up only corrupted session files, not all session files
+def cleanup_corrupted_sessions():
+    """Clean up only corrupted session files, preserve working ones"""
+    session_files = ["MN-Bot.session-journal", "MN-Bot.session.lock"]
+    cleaned = []
+    
+    for file in session_files:
+        if os.path.exists(file):
+            try:
+                os.remove(file)
+                cleaned.append(file)
+                logging.info(f"Cleaned up corrupted session file: {file}")
+            except Exception as e:
+                logging.warning(f"Could not remove session file {file}: {e}")
+    
+    # Only remove main session file if it's corrupted (very small or empty)
+    main_session = "MN-Bot.session"
+    if os.path.exists(main_session):
+        try:
+            size = os.path.getsize(main_session)
+            if size < 100:  # Very small session file is likely corrupted
+                os.remove(main_session)
+                cleaned.append(main_session)
+                logging.info(f"Removed corrupted main session file (size: {size} bytes)")
+            else:
+                logging.info(f"Keeping main session file (size: {size} bytes)")
+        except Exception as e:
+            logging.warning(f"Could not check session file {main_session}: {e}")
+    
+    return cleaned
 
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
 def crawl_tbl():
@@ -142,9 +201,13 @@ class MN_Bot(Client):
             workers=8
         )
         self.channel_id = CHANNEL.ID
-        self.last_posted = set()   # tracks individual file links
-        self.seen_topics = set()   # tracks which topic URLs have been processed
+        
+        # Load persistent data
+        self.last_posted, self.seen_topics, self.broken_urls = load_bot_data()
+        logging.info(f"Loaded {len(self.last_posted)} posted files, {len(self.seen_topics)} seen topics, {len(self.broken_urls)} broken URLs")
+        
         self.thumbnail = None  # will store the thumbnail bytes
+        self.is_running = False
 
     async def safe_send_message(self, chat_id, text, **kwargs):
         # split overly-long messages
@@ -164,11 +227,31 @@ class MN_Bot(Client):
             logging.error(f"Failed to download thumbnail: {e}")
             self.thumbnail = None
 
+    async def safe_send_document(self, chat_id, document, **kwargs):
+        """Safely send document with proper error handling"""
+        try:
+            if not self.is_running:
+                logging.warning("Client not running, skipping document send")
+                return False
+                
+            await self.send_document(chat_id, document, **kwargs)
+            return True
+        except errors.SessionClosed:
+            logging.error("Session closed, attempting to restart...")
+            await self.restart()
+            return False
+        except Exception as e:
+            logging.error(f"Error sending document: {e}")
+            return False
+
     async def auto_post_torrents(self):
-        while True:
+        while self.is_running:
             try:
                 torrents = crawl_tbl()
                 for t in torrents:
+                    if not self.is_running:
+                        break
+                        
                     topic = t["topic_url"]
                     # find brand‑new files in this topic
                     new_files = [f for f in t["links"] if f["link"] not in self.last_posted]
@@ -178,6 +261,9 @@ class MN_Bot(Client):
 
                     # send each new file
                     for file in new_files:
+                        if not self.is_running:
+                            break
+                            
                         try:
                             scraper = cloudscraper.create_scraper()
                             resp = scraper.get(file["link"], timeout=10)
@@ -189,21 +275,30 @@ class MN_Bot(Client):
                                 f"**📦 {file['size']}**\n"
                                 f"**#1TamilMV | #TamilMV | #TMV**"
                             )
-                            await self.send_document(
+                            
+                            success = await self.safe_send_document(
                                 self.channel_id,
                                 file_bytes,
                                 file_name=filename,
                                 caption=caption,
                                 thumb=self.thumbnail
                             )
-                            self.last_posted.add(file["link"])
-                            logging.info(f"Posted TBL: {file['title']}")
+                            
+                            if success:
+                                self.last_posted.add(file["link"])
+                                logging.info(f"Posted TBL: {file['title']}")
+                            else:
+                                logging.warning(f"Failed to post TBL: {file['title']}")
+                                
                             await asyncio.sleep(3)
                         except Exception as e:
                             logging.error(f"Error sending TBL file {file['link']}: {e}")
 
                     # mark this topic as seen
                     self.seen_topics.add(topic)
+
+                # Save data periodically (every 10 minutes or after processing)
+                save_bot_data(self.last_posted, self.seen_topics, self.broken_urls)
 
             except Exception as e:
                 logging.error(f"Error in auto_post_torrents: {e}")
@@ -212,7 +307,12 @@ class MN_Bot(Client):
             await asyncio.sleep(60)
 
     async def start(self):
+        # Clean up only corrupted sessions before starting
+        cleanup_corrupted_sessions()
+        
         await super().start()
+        self.is_running = True
+        
         me = await self.get_me()
         BOT.USERNAME = f"@{me.username}"
         
@@ -227,6 +327,12 @@ class MN_Bot(Client):
         asyncio.create_task(self.auto_post_torrents())
 
     async def stop(self, *args):
+        self.is_running = False
+        
+        # Save data before stopping
+        save_bot_data(self.last_posted, self.seen_topics, self.broken_urls)
+        logging.info("Bot data saved before stopping")
+        
         await super().stop()
         logging.info("Bot stopped")
 
