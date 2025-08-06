@@ -61,7 +61,7 @@ def crawl_tbl():
                 if a.get("href")
             ]
         # dedupe and limit to first 15 topics
-        for rel_url in list(dict.fromkeys(topic_links))[:15]:
+        for rel_url in list(dict.fromkeys(topic_links))[:100]:
             try:
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
                 
@@ -130,6 +130,7 @@ def crawl_tbl():
 
 class MN_Bot(Client):
     MAX_MSG_LENGTH = 4000
+    THUMBNAIL_URL = "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg"
 
     def __init__(self):
         super().__init__(
@@ -143,12 +144,25 @@ class MN_Bot(Client):
         self.channel_id = CHANNEL.ID
         self.last_posted = set()   # tracks individual file links
         self.seen_topics = set()   # tracks which topic URLs have been processed
+        self.thumbnail = None  # will store the thumbnail bytes
 
     async def safe_send_message(self, chat_id, text, **kwargs):
         # split overly-long messages
         for chunk in (text[i:i+self.MAX_MSG_LENGTH] for i in range(0, len(text), self.MAX_MSG_LENGTH)):
             await self.send_message(chat_id, chunk, **kwargs)
             await asyncio.sleep(1)
+
+    async def prepare_thumbnail(self):
+        """Download and prepare the thumbnail for file uploads"""
+        try:
+            scraper = cloudscraper.create_scraper()
+            resp = scraper.get(self.THUMBNAIL_URL, timeout=10)
+            resp.raise_for_status()
+            self.thumbnail = io.BytesIO(resp.content)
+            logging.info("Thumbnail downloaded successfully")
+        except Exception as e:
+            logging.error(f"Failed to download thumbnail: {e}")
+            self.thumbnail = None
 
     async def auto_post_torrents(self):
         while True:
@@ -171,15 +185,16 @@ class MN_Bot(Client):
                             file_bytes = io.BytesIO(resp.content)
                             filename = file["title"].replace(" ", "_") + ".torrent"
                             caption = (
-                                f"{file['title']}\n"
-                                f"📦 {file['size']}\n"
-                                "#tbl torrent file"
+                                f"**{file['title']}**\n"
+                                f"**📦 {file['size']}**\n"
+                                f"**#1TamilMV | #TamilMV | #TMV**"
                             )
                             await self.send_document(
                                 self.channel_id,
                                 file_bytes,
                                 file_name=filename,
-                                caption=caption
+                                caption=caption,
+                                thumb=self.thumbnail
                             )
                             self.last_posted.add(file["link"])
                             logging.info(f"Posted TBL: {file['title']}")
@@ -200,6 +215,10 @@ class MN_Bot(Client):
         await super().start()
         me = await self.get_me()
         BOT.USERNAME = f"@{me.username}"
+        
+        # Download thumbnail
+        await self.prepare_thumbnail()
+        
         await self.send_message(
             OWNER.ID,
             text=f"{me.first_name} ✅ BOT started with only TMVsupport (1‑min checks)"
