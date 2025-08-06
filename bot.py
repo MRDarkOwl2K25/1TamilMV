@@ -45,9 +45,8 @@ broken_urls = set()
 async def crawl_tbl():
     # Get config from database
     config = await db.get_bot_config()
-    base_url = config.get("base_url", "https://www.1tamilmv.com) if config else "https://www.1tamilmv.com"
+    base_url = config.get("base_url", "https://www.1tamilmv.com") if config else "https://www.1tamilmv.com"
     topic_limit = config.get("topic_limit", 0) if config else 0
-    
     torrents = []
     scraper = cloudscraper.create_scraper()
 
