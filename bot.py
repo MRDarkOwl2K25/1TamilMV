@@ -3,14 +3,16 @@ import logging
 import threading
 import io
 import re
+from datetime import datetime
 
 from flask import Flask
 from bs4 import BeautifulSoup
 import cloudscraper
 
 from pyrogram import Client, errors, utils as pyroutils
-from config import BOT, API, OWNER, CHANNEL
+from config import BOT, API, OWNER, CHANNEL, BOT_SETTINGS
 import start
+from database import db
 
 # Ensure proper chat/channel ID handling
 pyroutils.MIN_CHAT_ID = -999999999999
@@ -40,8 +42,12 @@ def extract_size(text):
 broken_urls = set()
 
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
-def crawl_tbl():
-    base_url = "https://www.yts.mx"
+async def crawl_tbl():
+    # Get config from database
+    config = await db.get_bot_config()
+    base_url = config.get("base_url", "https://www.1tamilmv.com) if config else "https://www.1tamilmv.com"
+    topic_limit = config.get("topic_limit", 0) if config else 0
+    
     torrents = []
     scraper = cloudscraper.create_scraper()
 
@@ -61,8 +67,8 @@ def crawl_tbl():
                 a["href"] for a in soup.find_all("a", href=re.compile(r'/topic/'))
                 if a.get("href")
             ]
-        # dedupe and limit to first 15 topics
-        for rel_url in list(dict.fromkeys(topic_links))[:15]:
+        # dedupe and limit to configured number of topics
+        for rel_url in list(dict.fromkeys(topic_links))[:topic_limit]:
             try:
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
                 
@@ -145,6 +151,8 @@ class MN_Bot(Client):
         self.last_posted = set()   # tracks individual file links
         self.seen_topics = set()   # tracks which topic URLs have been processed
         self.thumbnail = None  # will store the thumbnail bytes
+        self.config = None  # will store bot configuration
+        self.stats = {"posts_successful": 0, "posts_failed": 0, "total_scraped": 0}
 
     async def safe_send_message(self, chat_id, text, **kwargs):
         # split overly-long messages
@@ -155,8 +163,14 @@ class MN_Bot(Client):
     async def prepare_thumbnail(self):
         """Download and prepare the thumbnail for file uploads"""
         try:
+            # Get thumbnail URL from config
+            if self.config:
+                thumbnail_url = self.config.get("thumbnail_url", self.THUMBNAIL_URL)
+            else:
+                thumbnail_url = self.THUMBNAIL_URL
+                
             scraper = cloudscraper.create_scraper()
-            resp = scraper.get(self.THUMBNAIL_URL, timeout=10)
+            resp = scraper.get(thumbnail_url, timeout=10)
             resp.raise_for_status()
             self.thumbnail = io.BytesIO(resp.content)
             logging.info("Thumbnail downloaded successfully")
@@ -164,10 +178,30 @@ class MN_Bot(Client):
             logging.error(f"Failed to download thumbnail: {e}")
             self.thumbnail = None
 
+    async def load_config(self):
+        """Load bot configuration from database"""
+        try:
+            self.config = await db.get_bot_config()
+            if not self.config:
+                logging.warning("No configuration found, using defaults")
+        except Exception as e:
+            logging.error(f"Failed to load config: {e}")
+
+    async def get_caption_template(self):
+        """Get caption template from config"""
+        if self.config:
+            return self.config.get("caption_template", "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**")
+        return "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**"
+
+    async def format_caption(self, title, size):
+        """Format caption using template"""
+        template = await self.get_caption_template()
+        return template.format(title=title, size=size)
+
     async def auto_post_torrents(self):
         while True:
             try:
-                torrents = crawl_tbl()
+                torrents = await crawl_tbl()
                 for t in torrents:
                     topic = t["topic_url"]
                     # find brand‑new files in this topic
@@ -184,11 +218,10 @@ class MN_Bot(Client):
                             resp.raise_for_status()
                             file_bytes = io.BytesIO(resp.content)
                             filename = file["title"].replace(" ", "_") + ".torrent"
-                            caption = (
-                                f"**{file['title']}**\n"
-                                f"**📦 {file['size']}**\n"
-                                f"**#1TamilMV | #TamilMV | #TMV**"
-                            )
+                            
+                            # Use caption template from config
+                            caption = await self.format_caption(file["title"], file["size"])
+                            
                             await self.send_document(
                                 self.channel_id,
                                 file_bytes,
@@ -196,14 +229,43 @@ class MN_Bot(Client):
                                 caption=caption,
                                 thumb=self.thumbnail
                             )
+                            
+                            # Save to database
+                            await db.save_last_posted(file["link"])
                             self.last_posted.add(file["link"])
+                            
+                            # Update stats
+                            self.stats["posts_successful"] += 1
+                            
                             logging.info(f"Posted TBL: {file['title']}")
                             await asyncio.sleep(3)
+                            
                         except Exception as e:
                             logging.error(f"Error sending TBL file {file['link']}: {e}")
+                            
+                            # Save failed post
+                            await db.save_failed_post(
+                                file["link"], 
+                                file["title"], 
+                                file["size"], 
+                                str(e)
+                            )
+                            
+                            # Update stats
+                            self.stats["posts_failed"] += 1
 
                     # mark this topic as seen
                     self.seen_topics.add(topic)
+
+                # Update daily stats
+                await db.update_daily_stats(
+                    posts_successful=self.stats["posts_successful"],
+                    posts_failed=self.stats["posts_failed"],
+                    total_scraped=len(torrents)
+                )
+                
+                # Reset stats for next cycle
+                self.stats = {"posts_successful": 0, "posts_failed": 0, "total_scraped": 0}
 
             except Exception as e:
                 logging.error(f"Error in auto_post_torrents: {e}")
@@ -216,18 +278,28 @@ class MN_Bot(Client):
         me = await self.get_me()
         BOT.USERNAME = f"@{me.username}"
         
+        # Connect to MongoDB
+        await db.connect()
+        
+        # Load configuration
+        await self.load_config()
+        
         # Download thumbnail
         await self.prepare_thumbnail()
         
+        # Cleanup old data
+        await db.cleanup_old_data()
+        
         await self.send_message(
             OWNER.ID,
-            text=f"{me.first_name} ✅ BOT started with only TMVsupport (1‑min checks)"
+            text=f"{me.first_name} ✅ BOT started with MongoDB integration (1‑min checks)"
         )
-        logging.info("Bot started with only TMV support")
+        logging.info("Bot started with MongoDB integration")
         asyncio.create_task(self.auto_post_torrents())
 
     async def stop(self, *args):
         await super().stop()
+        await db.close()
         logging.info("Bot stopped")
 
 if __name__ == "__main__":

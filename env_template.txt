@@ -16,3 +16,10 @@ CHANNEL_ID=your_channel_id_here
 
 # Web Server Port (optional, default: 8000)
 PORT=8000
+
+# Bot Settings
+# Maximum number of topics to process per scraping cycle (optional, default: 15)
+TOPIC_LIMIT=0
+
+# MongoDB Connection String (optional, default: mongodb://localhost:27017)
+MONGODB_URI=mongodb://localhost:27017

@@ -40,3 +40,17 @@ class WEB:
     PORT: Specific port no. on which you want to run your bot, DON'T TOUCH IT IF YOU DON'T KNOW WHAT IS IT.
     """
     PORT = int(os.environ.get("PORT", 8000))
+
+
+class BOT_SETTINGS:
+    """
+    TOPIC_LIMIT: Maximum number of topics to process per scraping cycle (default: 15)
+    """
+    TOPIC_LIMIT = int(os.environ.get("TOPIC_LIMIT", 0))
+
+
+class MONGODB:
+    """
+    MONGODB_URI: MongoDB connection string
+    """
+    URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
