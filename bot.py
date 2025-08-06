@@ -10,6 +10,7 @@ import cloudscraper
 
 from pyrogram import Client, errors, utils as pyroutils
 from config import BOT, API, OWNER, CHANNEL
+import start
 
 # Ensure proper chat/channel ID handling
 pyroutils.MIN_CHAT_ID = -999999999999
@@ -138,7 +139,6 @@ class MN_Bot(Client):
             api_id=API.ID,
             api_hash=API.HASH,
             bot_token=BOT.TOKEN,
-            plugins=dict(root="."),
             workers=8
         )
         self.channel_id = CHANNEL.ID
