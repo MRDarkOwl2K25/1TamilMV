@@ -4,7 +4,17 @@ from config import OWNER
 
 class TEXT:
     START = """
-<b>Hi {}, I'm The Powerfull Personal Bot.\n\n Don't Waste Your Time </b>[ <i> Made With Love By @mn_movies_bot </i> ].
+<b>Hi {}, I'm TamilMV RSS Bot! 🤖</b>
+
+<b>Commands:</b>
+• /start - Show this menu
+• /help - Show help message
+
+<b>Features:</b>
+• Auto-posts new torrents every 1 minute
+• Real-time scraping from 1TamilMV.blue
+
+[ <i> Made With Love By @E4Error </i> ]
 """
     DEVELOPER = "Developer 💀"
     UPDATES_CHANNEL = "Updates Channel ❣️"
@@ -15,17 +25,17 @@ class INLINE:
     START_BTN = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(TEXT.DEVELOPER, url="https://t.me/mn_movies_bot"),
+                InlineKeyboardButton(TEXT.DEVELOPER, url="https://t.me/E4Error"),
             ],
             [
                 InlineKeyboardButton(
-                    TEXT.UPDATES_CHANNEL, url="https://t.me/MNBots"
+                    TEXT.UPDATES_CHANNEL, url="https://t.me/E4Error"
                 ),
             ],
             [
                 InlineKeyboardButton(
                     TEXT.SOURCE_CODE,
-                    url="https://github.com/MN-bots/Tamil-Blasters-Rss-Bot",
+                    url="https://t.me/E4Error",
                 ),
             ],
         ]

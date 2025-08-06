@@ -61,11 +61,16 @@ def crawl_tbl():
         for rel_url in list(dict.fromkeys(topic_links))[:15]:
             try:
                 full_url = rel_url if rel_url.startswith("http") else base_url + rel_url
+                
+                # Skip if this URL is known to be broken
+                if full_url in self.broken_urls:
+                    continue
                 dresp = scraper.get(full_url, timeout=10)
                 
                 # Check if the page exists (not 404)
                 if dresp.status_code == 404:
                     logging.info(f"Skipping 404 topic: {full_url}")
+                    self.broken_urls.add(full_url)  # Remember this broken URL
                     continue
                     
                 dresp.raise_for_status()
@@ -79,8 +84,22 @@ def crawl_tbl():
                         continue
                     link = href.strip()
                     raw_text = tag.get_text(strip=True)
-                    title = raw_text.replace("www.1TamilMV.blue - ", "")\
-                                    .rstrip(".torrent").strip()
+                    # Clean title by removing domain prefixes - more comprehensive cleaning
+                    title = raw_text
+                    
+                    # Use regex to remove any domain pattern
+                    import re
+                    # Remove any domain pattern like "www.1tamilmv.com - " or "1tamilmv.com - "
+                    title = re.sub(r'www\.1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
+                    title = re.sub(r'1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
+                    
+                    # Remove .torrent extension and clean up
+                    title = title.rstrip(".torrent").strip()
+                    
+                    # Debug: Log the original and cleaned title
+                    if raw_text != title:
+                        logging.info(f"Title cleaned: '{raw_text}' -> '{title}'")
+                    
                     size = extract_size(raw_text)
 
                     file_links.append({
@@ -122,6 +141,7 @@ class MN_Bot(Client):
         self.channel_id = CHANNEL.ID
         self.last_posted = set()   # tracks individual file links
         self.seen_topics = set()   # tracks which topic URLs have been processed
+        self.broken_urls = set()   # tracks URLs that return 404 errors
 
     async def safe_send_message(self, chat_id, text, **kwargs):
         # split overly-long messages

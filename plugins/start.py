@@ -21,12 +21,10 @@ async def help_command(client: MN_Bot, msg: Message):
 🤖 **TamilMV RSS Bot Commands:**
 
 **/start** - Start the bot and see main menu
-**/view** - View the last 5 entries from 1TamilMV
 **/help** - Show this help message
 
 📋 **Features:**
 • Auto-posts new torrents to channel every 1 minute
-• Manual viewing of recent entries
 • Real-time scraping from 1TamilMV.blue
 
 🔄 **Bot Status:** Running with 1-minute check intervals
