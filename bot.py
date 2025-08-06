@@ -290,14 +290,34 @@ class MN_Bot(Client):
         # Cleanup old data
         await db.cleanup_old_data()
         
-        # Register command handlers
-        self.add_handler(filters.command("start"), start.start_command)
-        self.add_handler(filters.command("help"), start.help_command)
-        self.add_handler(filters.command("settings") & filters.user(OWNER.ID), start.settings_command)
-        self.add_handler(filters.command("statistics") & filters.user(OWNER.ID), start.statistics_command)
-        self.add_handler(filters.command("retry_failed") & filters.user(OWNER.ID), start.retry_failed_command)
-        self.add_handler(filters.text & filters.user(OWNER.ID), start.handle_settings_input)
-        self.add_handler(filters.callback_query, start.callback_query_handler)
+        # Register command handlers using decorators
+        @self.on_message(filters.command("start"))
+        async def start_handler(client, message):
+            await start.start_command(client, message)
+            
+        @self.on_message(filters.command("help"))
+        async def help_handler(client, message):
+            await start.help_command(client, message)
+            
+        @self.on_message(filters.command("settings") & filters.user(OWNER.ID))
+        async def settings_handler(client, message):
+            await start.settings_command(client, message)
+            
+        @self.on_message(filters.command("statistics") & filters.user(OWNER.ID))
+        async def statistics_handler(client, message):
+            await start.statistics_command(client, message)
+            
+        @self.on_message(filters.command("retry_failed") & filters.user(OWNER.ID))
+        async def retry_failed_handler(client, message):
+            await start.retry_failed_command(client, message)
+            
+        @self.on_message(filters.text & filters.user(OWNER.ID))
+        async def text_handler(client, message):
+            await start.handle_settings_input(client, message)
+            
+        @self.on_callback_query()
+        async def callback_handler(client, callback_query):
+            await start.callback_query_handler(client, callback_query)
         
         await self.send_message(
             OWNER.ID,
