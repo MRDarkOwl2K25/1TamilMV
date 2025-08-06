@@ -291,18 +291,21 @@ async def handle_settings_input(client: Client, message: Message):
         elif state == "waiting_topic_limit":
             try:
                 limit = int(text)
-                if not (1 <= limit <= 50):
-                    await message.reply_text("❌ Topic limit must be between 1 and 50")
+                if limit < 0:
+                    await message.reply_text("❌ Topic limit cannot be negative! Please enter 0 or a positive number.")
                     return
                     
                 success = await db.update_bot_config("topic_limit", limit, user_id)
                 if success:
-                    await message.reply_text(f"✅ Topic limit updated successfully!\nNew limit: `{limit}`")
+                    if limit == 0:
+                        await message.reply_text(f"✅ Topic limit updated successfully!\nNew limit: `{limit}` (Skip indexing)")
+                    else:
+                        await message.reply_text(f"✅ Topic limit updated successfully!\nNew limit: `{limit}`")
                 else:
                     await message.reply_text("❌ Failed to update topic limit")
                     
             except ValueError:
-                await message.reply_text("❌ Invalid number! Please enter a number between 1 and 50")
+                await message.reply_text("❌ Invalid number! Please enter 0 or a positive number.")
                 return
                 
         del user_states[user_id]
@@ -364,7 +367,7 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
         config = await db.get_bot_config()
         current_limit = config.get('topic_limit', 0) if config else 0
         await callback_query.message.edit_text(
-            f"Send the new topic limit (1-50) or /cancel to abort:\n\n"
+            f"Send the new topic limit (0 to skip indexing, or any positive number) or /cancel to abort:\n\n"
             f"Current: `{current_limit}`"
         )
         
