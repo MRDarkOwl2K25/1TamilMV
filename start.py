@@ -380,6 +380,12 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
     elif data.startswith("confirm_restart_"):
         action = data.split("_")[-1]
         if action == "yes":
+            # Delete the confirmation message before restarting
+            try:
+                await callback_query.message.delete()
+            except:
+                pass  # Ignore errors if message deletion fails
+            
             # Restart the bot
             import os
             import sys

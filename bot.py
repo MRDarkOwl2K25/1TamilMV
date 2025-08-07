@@ -4,6 +4,7 @@ import threading
 import io
 import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 from flask import Flask
 from bs4 import BeautifulSoup
@@ -38,11 +39,58 @@ def extract_size(text):
     match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB|KB))", text, re.IGNORECASE)
     return match.group(1) if match else "Unknown"
 
+# Utility to clean title for display
+def clean_title(raw_title):
+    """Clean title by removing domain prefixes and extensions"""
+    title = raw_title
+    
+    # Use regex to remove any domain pattern
+    # Remove any domain pattern like "www.1tamilmv.com - " or "1tamilmv.com - "
+    title = re.sub(r'www\.1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
+    title = re.sub(r'1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
+    
+    # Remove .torrent extension and clean up
+    title = title.rstrip(".torrent").strip()
+    
+    return title
+
+# Utility to normalize URLs by removing domain
+def normalize_url(url):
+    """Remove domain from URL to make it domain-independent"""
+    try:
+        parsed = urlparse(url)
+        # Return path + query + fragment (everything except scheme and netloc)
+        normalized = parsed.path
+        if parsed.query:
+            normalized += '?' + parsed.query
+        if parsed.fragment:
+            normalized += '#' + parsed.fragment
+        return normalized
+    except:
+        # If parsing fails, return original URL
+        return url
+
+# Utility to normalize file URLs specifically for duplicate detection
+def normalize_file_url(url):
+    """Remove domain from URL to make it domain-independent"""
+    try:
+        parsed = urlparse(url)
+        # Return path + query + fragment (everything except scheme and netloc)
+        normalized = parsed.path
+        if parsed.query:
+            normalized += '?' + parsed.query
+        if parsed.fragment:
+            normalized += '#' + parsed.fragment
+        return normalized
+    except:
+        # If parsing fails, return original URL
+        return url
+
 # Global variable to track broken URLs
 broken_urls = set()
 
 # Crawl 1TamilMV for torrent files, returning topic URL + its files
-async def crawl_tbl():
+async def crawl_tbl(posted_files=None):
     # Get config from database
     config = await db.get_bot_config()
     base_url = config["base_url"] if config and "base_url" in config else None
@@ -50,6 +98,10 @@ async def crawl_tbl():
         logging.error("Base URL not set in config!")
         return []
     topic_limit = config["topic_limit"] if config and "topic_limit" in config else 0
+    
+    # Use empty set if no posted_files provided
+    if posted_files is None:
+        posted_files = set()
     
     torrents = []
     scraper = cloudscraper.create_scraper()
@@ -63,13 +115,6 @@ async def crawl_tbl():
             a["href"] for a in soup.find_all("a", href=re.compile(r'/forums/topic/'))
             if a.get("href")
         ]
-        
-        # If no topic links found, try alternative patterns
-        if not topic_links:
-            topic_links = [
-                a["href"] for a in soup.find_all("a", href=re.compile(r'/topic/'))
-                if a.get("href")
-            ]
         # dedupe and limit to configured number of topics
         for rel_url in list(dict.fromkeys(topic_links))[:topic_limit]:
             try:
@@ -97,27 +142,29 @@ async def crawl_tbl():
                         continue
                     link = href.strip()
                     raw_text = tag.get_text(strip=True)
-                    # Clean title by removing domain prefixes - more comprehensive cleaning
+                    
+                    # Normalize file URL for domain-independent duplicate detection
+                    normalized_link = normalize_file_url(link)
+                    
+                    # Log file URL patterns for debugging (only first few times)
+                    if len(posted_files) < 5:  # Only log during initial startup
+                        logging.info(f"File URL pattern: {link} -> {normalized_link}")
+                    
+                    # Check if this file is already posted using normalized URL
+                    if normalized_link in posted_files:
+                        # Skip already posted files
+                        logging.info(f"Skipping duplicate: {raw_text} (normalized: {normalized_link})")
+                        continue
+                    
+                    # Store raw title - will clean just before upload
                     title = raw_text
-                    
-                    # Use regex to remove any domain pattern
-                    # Remove any domain pattern like "www.1tamilmv.com - " or "1tamilmv.com - "
-                    title = re.sub(r'www\.1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
-                    title = re.sub(r'1tamilmv\.[a-z]+ - ', '', title, flags=re.IGNORECASE)
-                    
-                    # Remove .torrent extension and clean up
-                    title = title.rstrip(".torrent").strip()
-                    
-                    # Debug: Log the original and cleaned title
-                    if raw_text != title:
-                        logging.info(f"Title cleaned: '{raw_text}' -> '{title}'")
-                    
                     size = extract_size(raw_text)
 
                     file_links.append({
                         "type": "torrent",
-                        "title": title,
+                        "title": title,  # Raw title
                         "link": link,
+                        "normalized_link": normalized_link,
                         "size": size
                     })
 
@@ -150,7 +197,7 @@ class MN_Bot(Client):
             workers=8
         )
         self.channel_id = CHANNEL.ID
-        self.last_posted = set()   # tracks individual file links
+        self.last_posted = set()   # tracks normalized file URLs (domain-independent)
         self.seen_topics = set()   # tracks which topic URLs have been processed
         self.thumbnail = None  # will store the thumbnail bytes
         self.config = None  # will store bot configuration
@@ -210,26 +257,34 @@ class MN_Bot(Client):
     async def auto_post_torrents(self):
         while True:
             try:
-                torrents = await crawl_tbl()
+                torrents = await crawl_tbl(self.last_posted)
                 for t in torrents:
                     topic = t["topic_url"]
-                    # find brand‑new files in this topic
-                    new_files = [f for f in t["links"] if f["link"] not in self.last_posted]
+                    # All files in torrents are already filtered to be new (not posted)
                     # if we've seen this topic and there are no new files, skip
-                    if topic in self.seen_topics and not new_files:
+                    if topic in self.seen_topics and not t["links"]:
                         continue
 
                     # send each new file
-                    for file in new_files:
+                    for file in t["links"]:
                         try:
                             scraper = cloudscraper.create_scraper()
                             resp = scraper.get(file["link"], timeout=10)
                             resp.raise_for_status()
                             file_bytes = io.BytesIO(resp.content)
-                            filename = file["title"].replace(" ", "_") + ".torrent"
+                            
+                            # Clean title just before upload
+                            raw_title = file["title"]
+                            cleaned_title = clean_title(raw_title)
+                            
+                            # Log title cleaning
+                            if raw_title != cleaned_title:
+                                logging.info(f"Title cleaned: '{raw_title}' -> '{cleaned_title}'")
+                            
+                            filename = cleaned_title.replace(" ", "_") + ".torrent"
                             
                             # Use caption template from config
-                            caption = await self.format_caption(file["title"], file["size"])
+                            caption = await self.format_caption(cleaned_title, file["size"])
                             
                             await self.send_document(
                                 self.channel_id,
@@ -244,15 +299,16 @@ class MN_Bot(Client):
                                 t["topic_url"],
                                 t.get("title", ""),
                                 file["link"],
-                                file["title"],
-                                file["size"]
+                                cleaned_title,  # Store cleaned title
+                                file["size"],
+                                file["normalized_link"]
                             )
-                            self.last_posted.add(file["link"])
+                            self.last_posted.add(file["normalized_link"])
                             
                             # Update stats
                             self.stats["posts_successful"] += 1
                             
-                            logging.info(f"Posted TBL: {file['title']}")
+                            logging.info(f"Posted TBL: {cleaned_title}")
                             await asyncio.sleep(3)
                             
                         except Exception as e:
@@ -261,7 +317,7 @@ class MN_Bot(Client):
                             # Save failed post
                             await db.save_failed_post(
                                 file["link"], 
-                                file["title"], 
+                                file["title"],  # Raw title for failed posts
                                 file["size"], 
                                 str(e)
                             )
@@ -322,10 +378,15 @@ class MN_Bot(Client):
         posted_files = set()
         seen_topics = set()
         # Load posted files from topics collection (only files that were actually posted)
-        async for topic in db.db.topics.find({}, {"topic_url": 1, "files.file_link": 1}):
+        async for topic in db.db.topics.find({}, {"topic_url": 1, "files.file_link": 1, "files.normalized_link": 1}):
             seen_topics.add(topic["topic_url"])
             for f in topic.get("files", []):
-                posted_files.add(f["file_link"])
+                # Use normalized link if available, otherwise normalize the file_link
+                if f.get("normalized_link"):
+                    posted_files.add(f["normalized_link"])
+                else:
+                    # For backward compatibility, normalize old file_link
+                    posted_files.add(normalize_file_url(f["file_link"]))
         self.last_posted = posted_files
         self.seen_topics = seen_topics
         

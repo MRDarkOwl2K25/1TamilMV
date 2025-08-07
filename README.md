@@ -16,6 +16,7 @@
 - ⚙️ **Admin Commands**: Interactive settings management through Telegram commands.
 - 📊 **Statistics Tracking**: Daily and weekly performance statistics.
 - 🔧 **Dynamic Configuration**: Change bot settings on-the-fly without restarting.
+- 🔍 **Domain-Independent Duplicate Detection**: Prevents reposting the same torrents when 1TamilMV changes domains using URL normalization.
 - ☁️ **Cloud Deployment Ready**: Compatible with platforms like [Koyeb](https://www.koyeb.com), [Render](https://render.com), and [Heroku](https://heroku.com).
 
 ---
@@ -65,6 +66,14 @@ The bot requires a MongoDB database for storing:
 - Topic and posted files tracking
 - Failed posts for retry
 - Daily/weekly statistics
+
+### **Duplicate Detection**
+The bot uses URL normalization to prevent duplicate posts when 1TamilMV changes domains:
+- Simply removes the domain name from URLs
+- Keeps everything else (path, query parameters, fragments) exactly as-is
+- Same torrent has same normalized URL across different domains
+- Example: `https://1tamilmv.blue/applications/core/interface/file/attachment.php?id=140320&key=abc123` becomes `/applications/core/interface/file/attachment.php?id=140320&key=abc123`
+- No file downloads or complex hashing needed
 
 ---
 

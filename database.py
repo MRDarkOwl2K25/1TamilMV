@@ -200,7 +200,7 @@ class Database:
         except Exception as e:
             logging.error(f"Failed to cleanup old data: {e}")
 
-    async def add_posted_file_to_topic(self, topic_url, topic_title, file_link, file_title, size):
+    async def add_posted_file_to_topic(self, topic_url, topic_title, file_link, file_title, size, normalized_link=None):
         """Add a single posted file to a topic document"""
         from datetime import datetime
         try:
@@ -210,6 +210,11 @@ class Database:
                 "size": size,
                 "posted_at": datetime.now(IST)
             }
+            
+            # Add normalized link if provided
+            if normalized_link:
+                file_dict["normalized_link"] = normalized_link
+                
             await self.db.topics.update_one(
                 {"topic_url": topic_url},
                 {
