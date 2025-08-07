@@ -140,8 +140,6 @@ async def crawl_tbl():
 
 class MN_Bot(Client):
     MAX_MSG_LENGTH = 4000
-    # This constant provides a default thumbnail URL in case the config is missing or not loaded.
-    THUMBNAIL_URL = "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg"
 
     def __init__(self):
         super().__init__(
@@ -241,8 +239,14 @@ class MN_Bot(Client):
                                 thumb=self.thumbnail
                             )
                             
-                            # Save to database
-                            await db.save_posted_file(file["link"], file["title"], file["size"])
+                            # Save posted file to topics collection
+                            await db.add_posted_file_to_topic(
+                                t["topic_url"],
+                                t.get("title", ""),
+                                file["link"],
+                                file["title"],
+                                file["size"]
+                            )
                             self.last_posted.add(file["link"])
                             
                             # Update stats
@@ -264,13 +268,6 @@ class MN_Bot(Client):
                             
                             # Update stats
                             self.stats["posts_failed"] += 1
-
-                    # After posting all new files for a topic in auto_post_torrents:
-                    await db.save_topic_with_files(
-                        t["topic_url"],
-                        t.get("title", ""),
-                        t["links"]
-                    )
 
                     # mark this topic as seen
                     self.seen_topics.add(topic)
@@ -324,6 +321,7 @@ class MN_Bot(Client):
         # After connecting to MongoDB
         posted_files = set()
         seen_topics = set()
+        # Load posted files from topics collection (only files that were actually posted)
         async for topic in db.db.topics.find({}, {"topic_url": 1, "files.file_link": 1}):
             seen_topics.add(topic["topic_url"])
             for f in topic.get("files", []):

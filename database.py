@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import DATABASE
+import os
 
 IST = pytz.timezone('Asia/Kolkata')
 
@@ -36,12 +37,13 @@ class Database:
     
     async def initialize_default_config(self):
         """Initialize default bot configuration"""
+        
         default_config = {
             "_id": "bot_config",
-            "base_url": "https://www.1tamilmv.blue",
-            "thumbnail_url": "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg",
-            "caption_template": "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**",
-            "topic_limit": 0,
+            "base_url": os.environ.get("BASE_URL", "https://www.1tamilmv.blue"),
+            "thumbnail_url": os.environ.get("THUMBNAIL_URL", "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg"),
+            "caption_template": os.environ.get("CAPTION_TEMPLATE", "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**"),
+            "topic_limit": int(os.environ.get("TOPIC_LIMIT", "0")),
             "last_updated": datetime.now(IST),
             "updated_by": None
         }
@@ -89,19 +91,6 @@ class Database:
     # Removed old posted torrents logic: save_last_posted, get_last_posted, and related code.
     # Only topic-centric logic remains.
 
-    async def save_posted_file(self, file_link, title, size):
-        """Save every posted file (not just the last one)"""
-        try:
-            await self.db.posted.insert_one({
-                "file_link": file_link,
-                "title": title,
-                "size": size,
-                "posted_at": datetime.now(IST)
-            })
-            logging.info(f"Saved posted file: {title}")
-        except Exception as e:
-            logging.error(f"Failed to save posted file: {e}")
-    
     # Failed Posts Management
     async def save_failed_post(self, file_link, title, size, error_message):
         """Save failed post for retry"""
@@ -210,32 +199,28 @@ class Database:
             logging.info("Cleaned up old data")
         except Exception as e:
             logging.error(f"Failed to cleanup old data: {e}")
-    
-    async def save_topic_with_files(self, topic_url, topic_title, files):
-        """Upsert a topic document with its files as an array"""
+
+    async def add_posted_file_to_topic(self, topic_url, topic_title, file_link, file_title, size):
+        """Add a single posted file to a topic document"""
         from datetime import datetime
         try:
-            file_dicts = []
-            for f in files:
-                file_link = f.get("file_link") or f.get("link")
-                file_dict = {
-                    "file_link": file_link,
-                    "file_title": f.get("file_title") or f.get("title", ""),
-                    "size": f.get("size", "Unknown"),
-                    "posted_at": f.get("posted_at", datetime.now(IST))
-                }
-                file_dicts.append(file_dict)
+            file_dict = {
+                "file_link": file_link,
+                "file_title": file_title,
+                "size": size,
+                "posted_at": datetime.now(IST)
+            }
             await self.db.topics.update_one(
                 {"topic_url": topic_url},
                 {
                     "$set": {"title": topic_title, "last_updated": datetime.now(IST)},
-                    "$addToSet": {"files": {"$each": file_dicts}}
+                    "$addToSet": {"files": file_dict}
                 },
                 upsert=True
             )
-            logging.info(f"Saved/updated topic: {topic_title} ({topic_url}) with {len(file_dicts)} files")
+            logging.info(f"Added posted file to topic: {file_title} in {topic_title}")
         except Exception as e:
-            logging.error(f"Failed to save topic with files: {e}")
+            logging.error(f"Failed to add posted file to topic: {e}")
 
 
 # Global database instance

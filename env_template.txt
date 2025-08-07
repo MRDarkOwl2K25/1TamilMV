@@ -18,7 +18,7 @@ CHANNEL_ID=your_channel_id_here
 PORT=8000
 
 # Bot Settings
-# Maximum number of topics to process per scraping cycle (optional, default: 15)
+# Maximum number of topics to process per scraping cycle (optional, default: 0)
 TOPIC_LIMIT=0
 
 # Database Connection String (optional, default: mongodb://localhost:27017)
@@ -26,3 +26,13 @@ DATABASE_URI=mongodb://localhost:27017
 
 # Database Name (optional, default: tamilmv_bot)
 DATABASE_NAME=tamilmv_bot
+
+# Bot Configuration (optional - these can also be set via /settings command)
+# Base URL for scraping (optional, default: https://www.1tamilmv.com)
+BASE_URL=https://www.1tamilmv.com
+
+# Thumbnail URL for posts (optional, default: profile image)
+THUMBNAIL_URL=https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg
+
+# Caption template for posts (optional, must include {title} and {size} variables)
+CAPTION_TEMPLATE=**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**

@@ -17,7 +17,7 @@ class TEXT:
 
 <b>Features:</b>
 • Auto-posts new torrents every 1 minute
-• Real-time scraping from 1TamilMV.blue
+• Real-time scraping from 1TamilMV
 • MongoDB database integration
 • Dynamic configuration management
 
@@ -82,7 +82,7 @@ async def help_command(client: Client, msg: Message):
 
 📋 <b>Features:</b>
 • Auto-posts new torrents to channel every 1 minute
-• Real-time scraping from 1TamilMV.blue
+• Real-time scraping from 1TamilMV
 • MongoDB database integration
 • Dynamic configuration management
 
@@ -330,7 +330,7 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
         await callback_query.message.edit_text(
             "Send the new base URL (or /cancel to abort):\n\n"
             f"Current: `{current_url}`\n\n"
-            "Example: `https://www.1tamilmv.blue`"
+            "Example: `https://www.1tamilmv.com`"
         )
         
     elif data == "edit_thumbnail":

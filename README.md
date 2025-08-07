@@ -3,7 +3,7 @@
 
 # **Tamil Blasters RSS Bot**
 
-**TamilMV RSS Bot** is an advanced Telegram bot designed to automatically post torrent files from [1TamilMV](https://www.1tamilmv.blue) to a specified Telegram channel. The bot performs periodic checks to ensure the latest torrents are fetched and posted seamlessly with MongoDB database integration for configuration management and statistics tracking.
+**TamilMV RSS Bot** is an advanced Telegram bot designed to automatically post torrent files from [1TamilMV](https://www.1tamilmv.com) to a specified Telegram channel. The bot performs periodic checks to ensure the latest torrents are fetched and posted seamlessly with MongoDB database integration for configuration management and statistics tracking.
 
 ---
 
@@ -62,7 +62,7 @@ pip install -r requirements.txt
 ### **MongoDB Database**
 The bot requires a MongoDB database for storing:
 - Bot configuration settings
-- Posted torrents history
+- Topic and posted files tracking
 - Failed posts for retry
 - Daily/weekly statistics
 
