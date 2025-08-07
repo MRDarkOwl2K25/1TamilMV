@@ -83,31 +83,21 @@ class Database:
             logging.error(f"Failed to update config {field}: {e}")
             return False
     
-    # Posted Torrents Management
-    async def save_last_posted(self, torrent_link):
-        """Save the last posted torrent link"""
+    # Removed old posted torrents logic: save_last_posted, get_last_posted, and related code.
+    # Only topic-centric logic remains.
+
+    async def save_posted_file(self, file_link, title, size):
+        """Save every posted file (not just the last one)"""
         try:
-            await self.db.posted_torrents.update_one(
-                {"_id": "last_posted"},
-                {
-                    "$set": {
-                        "last_torrent_link": torrent_link,
-                        "last_posted_at": datetime.utcnow()
-                    }
-                },
-                upsert=True
-            )
+            await self.db.posted_torrents.insert_one({
+                "file_link": file_link,
+                "title": title,
+                "size": size,
+                "posted_at": datetime.utcnow()
+            })
+            logging.info(f"Saved posted file: {title}")
         except Exception as e:
-            logging.error(f"Failed to save last posted: {e}")
-    
-    async def get_last_posted(self):
-        """Get the last posted torrent link"""
-        try:
-            doc = await self.db.posted_torrents.find_one({"_id": "last_posted"})
-            return doc.get("last_torrent_link") if doc else None
-        except Exception as e:
-            logging.error(f"Failed to get last posted: {e}")
-            return None
+            logging.error(f"Failed to save posted file: {e}")
     
     # Failed Posts Management
     async def save_failed_post(self, file_link, title, size, error_message):
@@ -218,6 +208,31 @@ class Database:
         except Exception as e:
             logging.error(f"Failed to cleanup old data: {e}")
     
+    async def save_topic_with_files(self, topic_url, topic_title, files):
+        """Upsert a topic document with its files as an array"""
+        from datetime import datetime
+        try:
+            # Prepare file dicts with posted_at if not present
+            file_dicts = []
+            for f in files:
+                file_dict = {
+                    "file_link": f["file_link"],
+                    "file_title": f.get("file_title", f.get("title", "")),
+                    "size": f.get("size", "Unknown"),
+                    "posted_at": f.get("posted_at", datetime.utcnow())
+                }
+                file_dicts.append(file_dict)
+            await self.db.topics.update_one(
+                {"topic_url": topic_url},
+                {
+                    "$set": {"title": topic_title, "last_updated": datetime.utcnow()},
+                    "$addToSet": {"files": {"$each": file_dicts}}
+                },
+                upsert=True
+            )
+            logging.info(f"Saved/updated topic: {topic_title} ({topic_url}) with {len(file_dicts)} files")
+        except Exception as e:
+            logging.error(f"Failed to save topic with files: {e}")
 
 
 # Global database instance

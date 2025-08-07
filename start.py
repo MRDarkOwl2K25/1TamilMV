@@ -380,21 +380,6 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
     elif data.startswith("confirm_restart_"):
         action = data.split("_")[-1]
         if action == "yes":
-            msg = await callback_query.message.edit_text("🔄 Restarting server...")
-            await asyncio.sleep(2)
-            
-            # Get current time in IST
-            from datetime import datetime
-            import pytz
-            
-            msg_text = (
-                "<b>⌬ Restarted Successfully!</b>\n"
-                f"<b>┟ Date:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d/%m/%y')}\n"
-                f"<b>┠ Time:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%I:%M:%S %p')}\n"
-                f"<b>┠ TimeZone:</b> Asia/Kolkata"
-            )
-            await msg.edit(f"<i>{msg_text}</i>")
-            
             # Restart the bot
             import os
             import sys

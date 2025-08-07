@@ -231,7 +231,7 @@ class MN_Bot(Client):
                             )
                             
                             # Save to database
-                            await db.save_last_posted(file["link"])
+                            await db.save_posted_file(file["link"], file["title"], file["size"])
                             self.last_posted.add(file["link"])
                             
                             # Update stats
@@ -253,6 +253,13 @@ class MN_Bot(Client):
                             
                             # Update stats
                             self.stats["posts_failed"] += 1
+
+                    # After posting all new files for a topic in auto_post_torrents:
+                    await db.save_topic_with_files(
+                        t["topic_url"],
+                        t.get("title", ""),
+                        t["links"]
+                    )
 
                     # mark this topic as seen
                     self.seen_topics.add(topic)
@@ -281,9 +288,19 @@ class MN_Bot(Client):
         # Connect to MongoDB
         await db.connect()
         
+        from datetime import datetime
+        import pytz
+
+        msg_text = (
+            "<b>⌬ Bot Started Successfully!</b>\n"
+            f"<b>┟ Date:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d/%m/%y')}\n"
+            f"<b>┠ Time:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%I:%M:%S %p')}\n"
+            f"<b>┠ TimeZone:</b> Asia/Kolkata\n"
+            f"<b>┠ Status:</b> ✅ BOT started with MongoDB integration (1‑min checks)"
+        )
         await self.send_message(
             OWNER.ID,
-            text=f"{me.first_name} ✅ BOT started with MongoDB integration (1‑min checks)"
+            text=f"<i>{msg_text}</i>"
         )
         logging.info("Bot started with MongoDB integration")
         
@@ -293,8 +310,18 @@ class MN_Bot(Client):
         # Download thumbnail
         await self.prepare_thumbnail()
         
+        # After connecting to MongoDB
+        posted_files = set()
+        seen_topics = set()
+        async for topic in db.db.topics.find({}, {"topic_url": 1, "files.file_link": 1}):
+            seen_topics.add(topic["topic_url"])
+            for f in topic.get("files", []):
+                posted_files.add(f["file_link"])
+        self.last_posted = posted_files
+        self.seen_topics = seen_topics
+        
         # Cleanup old data
-        await db.cleanup_old_data()
+        # await db.cleanup_old_data()
         
         # Register command handlers using decorators
         @self.on_message(filters.command("start"))
