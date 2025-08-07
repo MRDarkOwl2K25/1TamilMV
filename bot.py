@@ -45,8 +45,11 @@ broken_urls = set()
 async def crawl_tbl():
     # Get config from database
     config = await db.get_bot_config()
-    base_url = config.get("base_url", "https://www.1tamilmv.com") if config else "https://www.1tamilmv.com"
-    topic_limit = config.get("topic_limit", 0) if config else 0
+    base_url = config["base_url"] if config and "base_url" in config else None
+    if not base_url:
+        logging.error("Base URL not set in config!")
+        return []
+    topic_limit = config["topic_limit"] if config and "topic_limit" in config else 0
     
     torrents = []
     scraper = cloudscraper.create_scraper()
@@ -137,6 +140,7 @@ async def crawl_tbl():
 
 class MN_Bot(Client):
     MAX_MSG_LENGTH = 4000
+    # This constant provides a default thumbnail URL in case the config is missing or not loaded.
     THUMBNAIL_URL = "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg"
 
     def __init__(self):
@@ -165,7 +169,10 @@ class MN_Bot(Client):
         try:
             # Get thumbnail URL from config
             if self.config:
-                thumbnail_url = self.config.get("thumbnail_url", self.THUMBNAIL_URL)
+                if "thumbnail_url" in self.config:
+                    thumbnail_url = self.config["thumbnail_url"]
+                else:
+                    thumbnail_url = self.THUMBNAIL_URL
             else:
                 thumbnail_url = self.THUMBNAIL_URL
                 
@@ -190,7 +197,11 @@ class MN_Bot(Client):
     async def get_caption_template(self):
         """Get caption template from config"""
         if self.config:
-            return self.config.get("caption_template", "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**")
+            if "caption_template" in self.config:
+                return self.config["caption_template"]
+            else:
+                logging.error("Caption template not set in config!")
+                return ""
         return "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**"
 
     async def format_caption(self, title, size):
