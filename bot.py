@@ -9,7 +9,7 @@ from flask import Flask
 from bs4 import BeautifulSoup
 import cloudscraper
 
-from pyrogram import Client, errors, utils as pyroutils, filters
+from pyrogram import Client, errors, utils as pyroutils, filters, enums
 from config import BOT, API, OWNER, CHANNEL, BOT_SETTINGS
 import start
 from database import db
@@ -300,7 +300,7 @@ class MN_Bot(Client):
         await self.send_message(
             OWNER.ID,
             text=msg_text,
-            parse_mode="html"
+            parse_mode=enums.ParseMode.HTML
         )
         logging.info("Bot started with MongoDB integration")
         
