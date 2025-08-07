@@ -296,11 +296,11 @@ class MN_Bot(Client):
             f"<b>┟ Date:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d/%m/%y')}\n"
             f"<b>┠ Time:</b> {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%I:%M:%S %p')}\n"
             f"<b>┠ TimeZone:</b> Asia/Kolkata\n"
-            f"<b>┠ Status:</b> ✅ BOT started with MongoDB integration (1‑min checks)"
         )
         await self.send_message(
             OWNER.ID,
-            text=f"<i>{msg_text}</i>"
+            text=msg_text,
+            parse_mode="html"
         )
         logging.info("Bot started with MongoDB integration")
         

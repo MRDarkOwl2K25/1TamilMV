@@ -1,8 +1,11 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+import pytz
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import DATABASE
+
+IST = pytz.timezone('Asia/Kolkata')
 
 class Database:
     def __init__(self):
@@ -39,7 +42,7 @@ class Database:
             "thumbnail_url": "https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg",
             "caption_template": "**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**",
             "topic_limit": 0,
-            "last_updated": datetime.utcnow(),
+            "last_updated": datetime.now(IST),
             "updated_by": None
         }
         
@@ -68,7 +71,7 @@ class Database:
         try:
             update_data = {
                 field: value,
-                "last_updated": datetime.utcnow()
+                "last_updated": datetime.now(IST)
             }
             if user_id:
                 update_data["updated_by"] = user_id
@@ -89,11 +92,11 @@ class Database:
     async def save_posted_file(self, file_link, title, size):
         """Save every posted file (not just the last one)"""
         try:
-            await self.db.posted_torrents.insert_one({
+            await self.db.posted.insert_one({
                 "file_link": file_link,
                 "title": title,
                 "size": size,
-                "posted_at": datetime.utcnow()
+                "posted_at": datetime.now(IST)
             })
             logging.info(f"Saved posted file: {title}")
         except Exception as e:
@@ -103,12 +106,12 @@ class Database:
     async def save_failed_post(self, file_link, title, size, error_message):
         """Save failed post for retry"""
         try:
-            await self.db.failed_posts.insert_one({
+            await self.db.failed.insert_one({
                 "file_link": file_link,
                 "title": title,
                 "size": size,
                 "error_message": error_message,
-                "failed_at": datetime.utcnow(),
+                "failed_at": datetime.now(IST),
                 "retry_count": 0
             })
             logging.info(f"Saved failed post: {title}")
@@ -118,7 +121,7 @@ class Database:
     async def get_failed_posts(self):
         """Get all failed posts"""
         try:
-            cursor = self.db.failed_posts.find({})
+            cursor = self.db.failed.find({})
             return await cursor.to_list(length=None)
         except Exception as e:
             logging.error(f"Failed to get failed posts: {e}")
@@ -127,14 +130,14 @@ class Database:
     async def remove_failed_post(self, file_link):
         """Remove failed post after successful retry"""
         try:
-            await self.db.failed_posts.delete_one({"file_link": file_link})
+            await self.db.failed.delete_one({"file_link": file_link})
         except Exception as e:
             logging.error(f"Failed to remove failed post: {e}")
     
     async def clear_failed_posts(self):
         """Clear all failed posts"""
         try:
-            await self.db.failed_posts.delete_many({})
+            await self.db.failed.delete_many({})
             logging.info("Cleared all failed posts")
         except Exception as e:
             logging.error(f"Failed to clear failed posts: {e}")
@@ -143,7 +146,7 @@ class Database:
     async def update_daily_stats(self, posts_successful=0, posts_failed=0, total_scraped=0):
         """Update daily statistics"""
         try:
-            today = datetime.utcnow().strftime("%Y-%m-%d")
+            today = datetime.now(IST).strftime("%Y-%m-%d")
             
             await self.db.bot_stats.update_one(
                 {"_id": today},
@@ -155,7 +158,7 @@ class Database:
                     },
                     "$set": {
                         "date": today,
-                        "last_updated": datetime.utcnow()
+                        "last_updated": datetime.now(IST)
                     }
                 },
                 upsert=True
@@ -167,7 +170,7 @@ class Database:
         """Get statistics for a specific date"""
         try:
             if not date:
-                date = datetime.utcnow().strftime("%Y-%m-%d")
+                date = datetime.now(IST).strftime("%Y-%m-%d")
             
             stats = await self.db.bot_stats.find_one({"_id": date})
             return stats
@@ -178,7 +181,7 @@ class Database:
     async def get_weekly_stats(self):
         """Get weekly statistics"""
         try:
-            week_ago = datetime.utcnow() - timedelta(days=7)
+            week_ago = datetime.now(IST) - timedelta(days=7)
             cursor = self.db.bot_stats.find({
                 "date": {"$gte": week_ago.strftime("%Y-%m-%d")}
             })
@@ -193,13 +196,13 @@ class Database:
         """Clean up old data on bot restart"""
         try:
             # Clear old failed posts (older than 1 day)
-            yesterday = datetime.utcnow() - timedelta(days=1)
-            await self.db.failed_posts.delete_many({
+            yesterday = datetime.now(IST) - timedelta(days=1)
+            await self.db.failed.delete_many({
                 "failed_at": {"$lt": yesterday}
             })
             
             # Clear old stats (older than 30 days)
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = datetime.now(IST) - timedelta(days=30)
             await self.db.bot_stats.delete_many({
                 "date": {"$lt": thirty_days_ago.strftime("%Y-%m-%d")}
             })
@@ -212,20 +215,20 @@ class Database:
         """Upsert a topic document with its files as an array"""
         from datetime import datetime
         try:
-            # Prepare file dicts with posted_at if not present
             file_dicts = []
             for f in files:
+                file_link = f.get("file_link") or f.get("link")
                 file_dict = {
-                    "file_link": f["file_link"],
-                    "file_title": f.get("file_title", f.get("title", "")),
+                    "file_link": file_link,
+                    "file_title": f.get("file_title") or f.get("title", ""),
                     "size": f.get("size", "Unknown"),
-                    "posted_at": f.get("posted_at", datetime.utcnow())
+                    "posted_at": f.get("posted_at", datetime.now(IST))
                 }
                 file_dicts.append(file_dict)
             await self.db.topics.update_one(
                 {"topic_url": topic_url},
                 {
-                    "$set": {"title": topic_title, "last_updated": datetime.utcnow()},
+                    "$set": {"title": topic_title, "last_updated": datetime.now(IST)},
                     "$addToSet": {"files": {"$each": file_dicts}}
                 },
                 upsert=True

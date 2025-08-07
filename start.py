@@ -183,9 +183,9 @@ async def retry_failed_command(client: Client, message: Message):
         return
         
     try:
-        failed_posts = await db.get_failed_posts()
+        failed = await db.get_failed_posts()
         
-        if not failed_posts:
+        if not failed:
             await message.reply_text("✅ No failed posts to retry!")
             return
             
@@ -197,7 +197,7 @@ async def retry_failed_command(client: Client, message: Message):
         
         text = f"""⚠️ **Failed Posts Management**
 
-**Failed Posts Count:** `{len(failed_posts)}`
+**Failed Posts Count:** `{len(failed)}`
 
 Select an action:"""
         
@@ -364,8 +364,8 @@ async def callback_query_handler(client: Client, callback_query: CallbackQuery):
         )
         
     elif data == "retry_all_failed":
-        failed_posts = await db.get_failed_posts()
-        if failed_posts:
+        failed = await db.get_failed_posts()
+        if failed:
             await callback_query.message.edit_text("🔄 Retrying all failed posts...")
             # Implement retry logic here
             await callback_query.answer("Retry started")
