@@ -1,0 +1,13 @@
+BOT_TOKEN=your_bot_token_here
+API_ID=your_api_id_here
+API_HASH=your_api_hash_here
+BOT_OWNER=your_user_id_here
+CHANNEL_ID=your_channel_id_here
+CHAT_ID=0
+PORT=8000
+TOPIC_LIMIT=0
+DATABASE_URI=mongodb://localhost:27017
+DATABASE_NAME=tamilmv_bot
+BASE_URL=https://www.1tamilmv.com
+THUMBNAIL_URL=https://pbs.twimg.com/profile_images/1672203006232924161/B6aInkS9_400x400.jpg
+CAPTION_TEMPLATE=**{title}**\n\n**📦 {size}**\n\n**#1TamilMV | #TamilMV | #TMV**\n\n**🚀 Uploaded By ~ @E4Error**
